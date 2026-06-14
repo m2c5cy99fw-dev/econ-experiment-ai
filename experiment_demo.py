@@ -51,6 +51,9 @@ def page_intro():
     
     st.success(f"✅ 系统已为您自动分配测试编号：**{st.session_state.subject_id}**")
     
+    # 【新增】：收集年龄作为异质性分析变量（默认值设为22，范围16-80，直接存为整数）
+    st.session_state.data['age'] = st.number_input("您的年龄：", min_value=16, max_value=80, value=22, step=1)
+    
     st.session_state.data['gender'] = st.radio("您的性别：", ["男性", "女性"], horizontal=True)
     st.session_state.data['confidence'] = st.slider("请评估您对数据处理和基础算术的自信程度（1-10分）：", 1, 10, 5)
     
@@ -96,7 +99,7 @@ def page_task1():
         change_page('Task 2 Intro')
 
 # ==========================================
-# 页面 3：Task 2 说明准备页 (【优化】：严格隐藏具体秒数)
+# 页面 3：Task 2 说明准备页 (严格隐藏具体秒数)
 # ==========================================
 def page_task2_intro():
     st.title("⚠️ 模块二考核说明：高薪竞争模式")
@@ -106,11 +109,11 @@ def page_task2_intro():
     ### 🎯 考核规则：
     1. **对手匹配：** 系统将为您全网随机匹配另外 3 名同期在线接单者进行横向 PK。
     2. **胜出条件（优胜劣汰）：** 平台将严格综合考核您的**答题准确率**与**提交响应速度**。只有整体表现最优秀的接单者方可战胜其他三人！
-    3. **高额回报：** 只有排名第一的胜出者可获得 **8代币/题** 的高薪，其余 3 人将惨遭淘汰（该模块收益归 0）。
+    3. **高额回报：** 只有排名第一的胜出者可获得 **4代币/题** 的高薪，是普通计价方式的2倍哦！而失败的其余 3 人将惨遭淘汰（该模块收益归 0）。
     """)
     
     if st.session_state.is_ai == 1:
-        st.info("💡 **致胜秘籍：** 作为拥有 AI 辅助特权的测试员，请熟练配合 AI 助手或采用复制粘贴的方式加快速度，以最快的速度秒杀对手！")
+        st.info("💡 **致胜秘籍：** 作为拥有 AI 辅助特权的测试员，请熟练采用复制粘贴等形式配合 AI 助手，以最快的速度秒杀对手！")
 
     st.write("请深呼吸，准备好后点击下方按钮。")
     
@@ -155,11 +158,11 @@ def page_task2():
             if user_ans.strip() == str(a + b):
                 score += 1
                 
-        # 【核心修改】：精准匹配隐形时间阈值（有AI限时20秒，无AI限时25秒）
+        # 隐形时间阈值匹配（有AI限时20秒，无AI限时25秒）
         allowed_time = 20.0 if st.session_state.is_ai == 1 else 25.0
         
         if score == 3 and time_spent <= allowed_time:
-            st.session_state.data['task2_tokens'] = score * 8
+            st.session_state.data['task2_tokens'] = score * 4
             st.session_state.data['task2_win'] = 1
         else:
             st.session_state.data['task2_tokens'] = 0
@@ -174,10 +177,10 @@ def page_task2():
 # ==========================================
 def page_task3():
     st.title("⚖️ 模块三：契约偏好设置")
-    st.write("请注意！平台允许接单者自主选择结算契约类型。**注意：您在此处的选择将直接决定您最终的提现结构！您可以根据您的表现自主判断选择哪种类型的结算方式！**")
+    st.write("该平台允许接单者自主选择结算契约类型。**注意：您在此处的选择将直接决定您最终的提现结构！**")
     choice = st.radio("请为您接下来的工作选择签约模式：", 
-                      ["选项 A：稳健计件制（最终收益按模块一常规处理作为底薪）", 
-                       "选项 B：高薪竞争制（最终收益按模块二竞争模式作为底薪）"])
+                      ["选项 A：稳健计件制（最终收益以模块一作为底薪）", 
+                       "选项 B：高薪竞争制（最终收益以模块二作为底薪）"])
     if st.button("确认契约类型", type="primary"):
         st.session_state.data['compete_choice'] = 1 if "选项 B" in choice else 0
         change_page('Task 4')
@@ -257,13 +260,12 @@ def page_result():
     final_rmb = round(final_tokens * 0.5, 2)
 
     # ==========================================
-    # 【核心优化】：PushPlus 微信实时回传系统
+    # PushPlus 微信实时回传系统
     # ==========================================
     if not st.session_state.data_sent:
         st.session_state.data['final_tokens'] = final_tokens
         st.session_state.data['final_rmb'] = final_rmb
         
-        # 完美硬编码嵌入您专属的一对一高效推送令牌
         PUSHPLUS_TOKEN = "87855a437d2547159dd4a6c39ae2a472"
         push_url = "http://www.pushplus.plus/send"
         
@@ -290,7 +292,7 @@ def page_result():
     col_c.metric("未选用模块", "0 代币", delta="-已弃用-", delta_color="off")
 
     if compete_choice == 1 and t2_tokens == 0:
-        st.warning("⚠️ 模块二注：您在竞争中未能战胜对手（可能准确率未达到100%，或耗时较长），导致该部分收益流标为0。")
+        st.warning("⚠️ 模块二注：您在竞争中未能战胜对手（可能准确率未达到100%，或总耗时未达到平台的隐藏优秀指标），导致该部分收益流标为0。")
     if 'task4_tokens' in st.session_state.data and t4_tokens < 6.0: 
         st.info("💡 模块四注：项目协商中，若您的个别报价超过了发包方底线，该单笔项目收益将归零。")
 
