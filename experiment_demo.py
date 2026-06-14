@@ -3,65 +3,64 @@ import pandas as pd
 import random
 import time
 import re
-import uuid       # 【新增】：用于自动生成唯一编号
-import requests   # 【新增】：用于自动将数据发送给你的邮箱
-import json
+import uuid       
+import requests   
+import json       
 
 # ==========================================
-# 页面全局配置
+# 页面全局配置 (去实验化职场包装)
 # ==========================================
 st.set_page_config(page_title="云端在线工作台 - 收益测试", layout="centered")
 
 # ==========================================
-# 核心状态初始化 (全自动隐形管理)
+# 核心状态初始化 (数据全自动隐形运转)
 # ==========================================
 if 'page' not in st.session_state:
     st.session_state.page = 'Intro'
 if 'is_ai' not in st.session_state:
+    # 后台静默随机分组：0为纯人工，1为有AI辅助
     st.session_state.is_ai = random.choice([0, 1]) 
 if 'data' not in st.session_state:
     st.session_state.data = {}
 if 'matched' not in st.session_state:
     st.session_state.matched = False
 if 'data_sent' not in st.session_state:
-    st.session_state.data_sent = False # 防止数据重复发送
+    st.session_state.data_sent = False 
 
-# 【核心优化 1】：系统自动生成独一无二的被试编号 (例如: SUBJ-A1B2C3)
+# 系统全自动生成唯一编码，免去手动输入的干扰
 if 'subject_id' not in st.session_state:
     st.session_state.subject_id = "SUBJ-" + uuid.uuid4().hex[:6].upper()
 
-# 随机题库生成
+# 动态题库生成 (确保每位被试独立作答)
 if 't1_q' not in st.session_state:
     st.session_state.t1_q = [(random.randint(11, 99), random.randint(11, 99)) for _ in range(3)]
 if 't2_q' not in st.session_state:
     st.session_state.t2_q = [(random.randint(11, 99), random.randint(11, 99)) for _ in range(3)]
 
-# 页面跳转路由
+# 页面跳转路由函数
 def change_page(page_name):
     st.session_state.page = page_name
     st.rerun()
 
 # ==========================================
-# 页面 1：欢迎与信息录入 (已隐藏编号输入)
+# 页面 1：欢迎与基础信息录入
 # ==========================================
 def page_intro():
     st.title("💼 云端工作流平台测试")
     st.info("欢迎参与本平台的任务测试流。您的所有操作都将记录在案，我们将根据您完成的任务质量，发放真实的测试酬劳。\n\n**💵 薪酬换算：** 平台内的计价单位为“代币”，测试结束后将按照 **1代币 = 0.5元人民币** 结算至您的账户。")
     
-    # 告诉被试者系统已经为他们分配了ID
     st.success(f"✅ 系统已为您自动分配测试编号：**{st.session_state.subject_id}**")
     
     st.session_state.data['gender'] = st.radio("您的性别：", ["男性", "女性"], horizontal=True)
     st.session_state.data['confidence'] = st.slider("请评估您对数据处理和基础算术的自信程度（1-10分）：", 1, 10, 5)
     
     if st.button("签署协议并进入工作台", type="primary"):
-        # 将被试基础信息静默存入字典
         st.session_state.data['subject_id'] = st.session_state.subject_id
         st.session_state.data['is_ai_group'] = st.session_state.is_ai 
         change_page('Task 1')
 
 # ==========================================
-# 页面 2：Task 1 计件模式 
+# 页面 2：Task 1 计件模式 (基准能力测试)
 # ==========================================
 def page_task1():
     st.title("📝 模块一：常规数据处理")
@@ -97,21 +96,21 @@ def page_task1():
         change_page('Task 2 Intro')
 
 # ==========================================
-# 页面 3：Task 2 说明准备页 
+# 页面 3：Task 2 说明准备页 (【优化】：严格隐藏具体秒数)
 # ==========================================
 def page_task2_intro():
     st.title("⚠️ 模块二考核说明：高薪竞争模式")
-    st.warning("您即将进入压力测试环节，请仔细阅读以下规则。点击下方按钮后，将立即开始匹配对手并启动倒计时！")
+    st.warning("您即将进入压力测试环节，请仔细阅读以下规则。点击下方按钮后，将立即开始匹配对手并启动后台考核评估！")
     
     st.markdown("""
     ### 🎯 考核规则：
     1. **对手匹配：** 系统将为您全网随机匹配另外 3 名同期在线接单者进行横向 PK。
-    2. **胜出条件（优胜劣汰）：** 您必须在接下来的测试中保证 **100% 的准确率（3题全对）**，且总耗时必须控制在 **15 秒以内**，方可战胜其他三人！
-    3. **高额回报：** 只有排名第一的胜出者可获得 **8代币/题** 的高薪，其余 3 人将惨遭淘汰（收益归 0）。
+    2. **胜出条件（优胜劣汰）：** 平台将严格综合考核您的**答题准确率**与**提交响应速度**。只有整体表现最优秀的接单者方可战胜其他三人！
+    3. **高额回报：** 只有排名第一的胜出者可获得 **8代币/题** 的高薪，其余 3 人将惨遭淘汰（该模块收益归 0）。
     """)
     
     if st.session_state.is_ai == 1:
-        st.info("💡 **致胜秘籍：** 作为拥有 AI 辅助特权的测试员，请提前准备好您的复制粘贴手速，让 AI 帮您秒杀对手！")
+        st.info("💡 **致胜秘籍：** 作为拥有 AI 辅助特权的测试员，请熟练配合 AI 助手或采用复制粘贴的方式加快速度，以最快的速度秒杀对手！")
 
     st.write("请深呼吸，准备好后点击下方按钮。")
     
@@ -119,7 +118,7 @@ def page_task2_intro():
         change_page('Task 2')
 
 # ==========================================
-# 页面 4：Task 2 锦标赛模式 (考核与计时)
+# 页面 4：Task 2 锦标赛模式 (精准隐形时间拦截)
 # ==========================================
 def page_task2():
     st.title("🏆 模块二：高薪竞争模式 (进行中)")
@@ -128,10 +127,11 @@ def page_task2():
         with st.spinner('正在全网匹配同期在线接单者，请稍候...'):
             time.sleep(2.5) 
         st.session_state.matched = True
+        # 匹配成功，静默启动高精计时器
         st.session_state.t2_start_time = time.time() 
         st.rerun()
 
-    st.success("✅ 匹配成功！您已被分配至 4人竞争小组，考核计时已开始！请火速作答！")
+    st.success("✅ 匹配成功！您已被分配至 4人竞争小组，考核已开始！请火速作答并点击下方提交！")
     
     if st.session_state.is_ai == 1:
         with st.expander("👉 展开 AI 助手"):
@@ -147,14 +147,18 @@ def page_task2():
         user_ans = st.text_input(f"数据条目 {i+1}： {a} + {b} = ?", key=f"t2_q{i}")
         ans_list.append((a, b, user_ans))
         
-    if st.button("提交成绩入库 (注意耗时！)", type="primary"):
+    if st.button("提交成绩入库", type="primary"):
+        # 计算被试实际总耗时
         time_spent = time.time() - st.session_state.t2_start_time
         score = 0
         for a, b, user_ans in ans_list:
             if user_ans.strip() == str(a + b):
                 score += 1
                 
-        if score == 3 and time_spent <= 15.0:
+        # 【核心修改】：精准匹配隐形时间阈值（有AI限时20秒，无AI限时25秒）
+        allowed_time = 20.0 if st.session_state.is_ai == 1 else 25.0
+        
+        if score == 3 and time_spent <= allowed_time:
             st.session_state.data['task2_tokens'] = score * 8
             st.session_state.data['task2_win'] = 1
         else:
@@ -166,29 +170,30 @@ def page_task2():
         change_page('Task 3')
 
 # ==========================================
-# 页面 5：Task 3 契约偏好 
+# 页面 5：Task 3 契约偏好自主决策
 # ==========================================
 def page_task3():
     st.title("⚖️ 模块三：契约偏好设置")
-    st.write("在未来的任务分发中，平台允许接单者自主选择结算契约类型。**注意：您在此处的选择将直接决定您最终的提现结构！**")
+    st.write("请注意！平台允许接单者自主选择结算契约类型。**注意：您在此处的选择将直接决定您最终的提现结构！您可以根据您的表现自主判断选择哪种类型的结算方式！**")
     choice = st.radio("请为您接下来的工作选择签约模式：", 
-                      ["选项 A：稳健计件制（最终收益 = 模块一常规处理 + 模块四协商）", 
-                       "选项 B：高薪竞争制（最终收益 = 模块二竞争模式 + 模块四协商）"])
+                      ["选项 A：稳健计件制（最终收益按模块一常规处理作为底薪）", 
+                       "选项 B：高薪竞争制（最终收益按模块二竞争模式作为底薪）"])
     if st.button("确认契约类型", type="primary"):
         st.session_state.data['compete_choice'] = 1 if "选项 B" in choice else 0
         change_page('Task 4')
 
 # ==========================================
-# 页面 6：Task 4 薪酬谈判博弈 
+# 页面 6：Task 4 薪酬谈判博弈 (动态输入框联动)
 # ==========================================
 def page_task4():
     st.title("💼 模块四：项目报价与协商")
     st.write("平台目前有 4 个外包项目。发包方给出了【初始报价】。您可以选择直接接单，或者提出您的【期望报价（讨价还价）】。")
-    st.warning("⚠️ 注意：发包方在后台设置了严格的【最高预算底线】。如果您填写的要价超过了对方的底线，系统将自动判定流标（收益为0）！")
+    st.warning("⚠️ 注意：发包方在后台设置了严格的【最高预算底线】。如果您填写的要价超过了对方的底线，系统将自动判定流标（该任务收益为0）！")
     
     if st.session_state.is_ai == 1:
         st.success("💡 **工作台提示：** AI 赋能让您具备更高的产出价值，请在报价时酌情考量您的市场竞争力。")
 
+    # 精准设定的谈判底线字典
     tasks_config = {
         "A. 数据搜集": {"offer": 1.5, "max": 2.0},
         "B. 文案撰写": {"offer": 2.0, "max": 3.0},
@@ -225,7 +230,7 @@ def page_task4():
         change_page('Result')
 
 # ==========================================
-# 页面 7：实验结束与隐形数据回传
+# 页面 7：测试结束与微信隐形回传
 # ==========================================
 def page_result():
     st.title("🎉 测试结束与财务核算")
@@ -252,24 +257,21 @@ def page_result():
     final_rmb = round(final_tokens * 0.5, 2)
 
     # ==========================================
-    # 【核心优化 2】：自动将实验数据发送到研究者邮箱
+    # 【核心优化】：PushPlus 微信实时回传系统
     # ==========================================
     if not st.session_state.data_sent:
-        # 将最终收益也存入数据字典
         st.session_state.data['final_tokens'] = final_tokens
         st.session_state.data['final_rmb'] = final_rmb
         
-        # ⚠️ 这里请替换为你自己的 Formspree 专属链接 (见下方说明)
-# 【国内替代方案】：使用 PushPlus 发送到你的微信
-        PUSHPLUS_TOKEN = "87855a437d2547159dd4a6c39ae2a472" 
+        # 完美硬编码嵌入您专属的一对一高效推送令牌
+        PUSHPLUS_TOKEN = "87855a437d2547159dd4a6c39ae2a472"
         push_url = "http://www.pushplus.plus/send"
         
-        # 组装发给微信的消息卡片
         payload = {
             "token": PUSHPLUS_TOKEN,
             "title": f"🎉 新被试完成实验: {st.session_state.subject_id}",
             "content": json.dumps(st.session_state.data, ensure_ascii=False, indent=2),
-            "template": "json" # 让微信以代码高亮格式漂亮地展示数据
+            "template": "json" 
         }
         
         try:
@@ -277,7 +279,7 @@ def page_result():
         except Exception as e:
             pass
         
-        st.session_state.data_sent = True # 确保只发送一次
+        st.session_state.data_sent = True 
 
     st.success(f"💰 **契约执行通知：** 您选择生效的契约为【{contract_name}】。")
     
@@ -288,7 +290,7 @@ def page_result():
     col_c.metric("未选用模块", "0 代币", delta="-已弃用-", delta_color="off")
 
     if compete_choice == 1 and t2_tokens == 0:
-        st.warning("⚠️ 模块二注：您在竞争中未能战胜对手（可能准确率未达到100%，或总耗时超过了15秒），导致该部分收益流标为0。")
+        st.warning("⚠️ 模块二注：您在竞争中未能战胜对手（可能准确率未达到100%，或耗时较长），导致该部分收益流标为0。")
     if 'task4_tokens' in st.session_state.data and t4_tokens < 6.0: 
         st.info("💡 模块四注：项目协商中，若您的个别报价超过了发包方底线，该单笔项目收益将归零。")
 
@@ -298,9 +300,11 @@ def page_result():
     col1.metric("🌟 总计获得代币", f"{final_tokens} 个")
     col2.metric("💴 兑现人民币 (1:0.5)", f"¥ {final_rmb} 元")
     
-    st.info("📌 您的收益数据已自动上传至财务系统。您可以关闭本网页了。")
+    st.info("📌 您的财务测试数据已全自动、安全地回传至系统后台。现在您可以放心关闭此网页。")
 
-# 路由挂载
+# ==========================================
+# 路由映射表
+# ==========================================
 if st.session_state.page == 'Intro': page_intro()
 elif st.session_state.page == 'Task 1': page_task1()
 elif st.session_state.page == 'Task 2 Intro': page_task2_intro()  
