@@ -3,6 +3,9 @@ import pandas as pd
 import random
 import time
 import re
+import uuid       # 【新增】：用于自动生成唯一编号
+import requests   # 【新增】：用于自动将数据发送给你的邮箱
+import json
 
 # ==========================================
 # 页面全局配置
@@ -10,7 +13,7 @@ import re
 st.set_page_config(page_title="云端在线工作台 - 收益测试", layout="centered")
 
 # ==========================================
-# 核心状态初始化 
+# 核心状态初始化 (全自动隐形管理)
 # ==========================================
 if 'page' not in st.session_state:
     st.session_state.page = 'Intro'
@@ -20,6 +23,12 @@ if 'data' not in st.session_state:
     st.session_state.data = {}
 if 'matched' not in st.session_state:
     st.session_state.matched = False
+if 'data_sent' not in st.session_state:
+    st.session_state.data_sent = False # 防止数据重复发送
+
+# 【核心优化 1】：系统自动生成独一无二的被试编号 (例如: SUBJ-A1B2C3)
+if 'subject_id' not in st.session_state:
+    st.session_state.subject_id = "SUBJ-" + uuid.uuid4().hex[:6].upper()
 
 # 随机题库生成
 if 't1_q' not in st.session_state:
@@ -33,17 +42,21 @@ def change_page(page_name):
     st.rerun()
 
 # ==========================================
-# 页面 1：欢迎与信息录入
+# 页面 1：欢迎与信息录入 (已隐藏编号输入)
 # ==========================================
 def page_intro():
     st.title("💼 云端工作流平台测试")
     st.info("欢迎参与本平台的任务测试流。您的所有操作都将记录在案，我们将根据您完成的任务质量，发放真实的测试酬劳。\n\n**💵 薪酬换算：** 平台内的计价单位为“代币”，测试结束后将按照 **1代币 = 0.5元人民币** 结算至您的账户。")
     
-    st.session_state.data['subject_id'] = st.text_input("请输入您的测试工号/学号：", "001")
+    # 告诉被试者系统已经为他们分配了ID
+    st.success(f"✅ 系统已为您自动分配测试编号：**{st.session_state.subject_id}**")
+    
     st.session_state.data['gender'] = st.radio("您的性别：", ["男性", "女性"], horizontal=True)
     st.session_state.data['confidence'] = st.slider("请评估您对数据处理和基础算术的自信程度（1-10分）：", 1, 10, 5)
     
     if st.button("签署协议并进入工作台", type="primary"):
+        # 将被试基础信息静默存入字典
+        st.session_state.data['subject_id'] = st.session_state.subject_id
         st.session_state.data['is_ai_group'] = st.session_state.is_ai 
         change_page('Task 1')
 
@@ -81,11 +94,10 @@ def page_task1():
                 score += 1
         st.session_state.data['task1_score'] = score
         st.session_state.data['task1_tokens'] = score * 2 
-        # 【修改点】：完成后先跳转到 Task 2 的说明页，而不是直接开考
         change_page('Task 2 Intro')
 
 # ==========================================
-# 页面 3：Task 2 说明准备页 (新增过渡页)
+# 页面 3：Task 2 说明准备页 
 # ==========================================
 def page_task2_intro():
     st.title("⚠️ 模块二考核说明：高薪竞争模式")
@@ -103,12 +115,11 @@ def page_task2_intro():
 
     st.write("请深呼吸，准备好后点击下方按钮。")
     
-    # 按钮点击后才真正进入带倒计时的 Task 2
     if st.button("我已完全了解规则，开始匹配并挑战！", type="primary"):
         change_page('Task 2')
 
 # ==========================================
-# 页面 4：Task 2 锦标赛模式 (正式考核与计时)
+# 页面 4：Task 2 锦标赛模式 (考核与计时)
 # ==========================================
 def page_task2():
     st.title("🏆 模块二：高薪竞争模式 (进行中)")
@@ -117,7 +128,6 @@ def page_task2():
         with st.spinner('正在全网匹配同期在线接单者，请稍候...'):
             time.sleep(2.5) 
         st.session_state.matched = True
-        # 匹配成功的那一刻，才是真正开始计时的时间点
         st.session_state.t2_start_time = time.time() 
         st.rerun()
 
@@ -138,14 +148,12 @@ def page_task2():
         ans_list.append((a, b, user_ans))
         
     if st.button("提交成绩入库 (注意耗时！)", type="primary"):
-        # 计算被试者作答耗时
         time_spent = time.time() - st.session_state.t2_start_time
         score = 0
         for a, b, user_ans in ans_list:
             if user_ans.strip() == str(a + b):
                 score += 1
                 
-        # 隐形判定规则：全对(3分) 且 用时 <= 15.0秒
         if score == 3 and time_spent <= 15.0:
             st.session_state.data['task2_tokens'] = score * 8
             st.session_state.data['task2_win'] = 1
@@ -217,7 +225,7 @@ def page_task4():
         change_page('Result')
 
 # ==========================================
-# 页面 7：实验结束与财务核算 
+# 页面 7：实验结束与隐形数据回传
 # ==========================================
 def page_result():
     st.title("🎉 测试结束与财务核算")
@@ -243,6 +251,34 @@ def page_result():
         
     final_rmb = round(final_tokens * 0.5, 2)
 
+    # ==========================================
+    # 【核心优化 2】：自动将实验数据发送到研究者邮箱
+    # ==========================================
+    if not st.session_state.data_sent:
+        # 将最终收益也存入数据字典
+        st.session_state.data['final_tokens'] = final_tokens
+        st.session_state.data['final_rmb'] = final_rmb
+        
+        # ⚠️ 这里请替换为你自己的 Formspree 专属链接 (见下方说明)
+# 【国内替代方案】：使用 PushPlus 发送到你的微信
+        PUSHPLUS_TOKEN = "87855a437d2547159dd4a6c39ae2a472" 
+        push_url = "http://www.pushplus.plus/send"
+        
+        # 组装发给微信的消息卡片
+        payload = {
+            "token": PUSHPLUS_TOKEN,
+            "title": f"🎉 新被试完成实验: {st.session_state.subject_id}",
+            "content": json.dumps(st.session_state.data, ensure_ascii=False, indent=2),
+            "template": "json" # 让微信以代码高亮格式漂亮地展示数据
+        }
+        
+        try:
+            requests.post(push_url, json=payload)
+        except Exception as e:
+            pass
+        
+        st.session_state.data_sent = True # 确保只发送一次
+
     st.success(f"💰 **契约执行通知：** 您选择生效的契约为【{contract_name}】。")
     
     st.write("📊 **您的收益明细：**")
@@ -261,24 +297,13 @@ def page_result():
     col1, col2 = st.columns(2)
     col1.metric("🌟 总计获得代币", f"{final_tokens} 个")
     col2.metric("💴 兑现人民币 (1:0.5)", f"¥ {final_rmb} 元")
-
-    st.divider()
-    with st.expander("🔐 仅研究者可见：微观底层数据看板 (被试者视角通常隐藏)"):
-        st.caption("字段说明：compete_choice(1为竞标), is_ai_group(1为AI组), task2_win(1为胜出)")
-        df = pd.DataFrame([st.session_state.data])
-        st.dataframe(df, use_container_width=True)
     
-    if st.button("清空本地数据，准备下一次测试", type="primary"):
-        for key in list(st.session_state.keys()): 
-            del st.session_state[key]
-        st.rerun()
+    st.info("📌 您的收益数据已自动上传至财务系统。您可以关闭本网页了。")
 
-# ==========================================
-# 路由挂载 (增加新增的 Intro 页面)
-# ==========================================
+# 路由挂载
 if st.session_state.page == 'Intro': page_intro()
 elif st.session_state.page == 'Task 1': page_task1()
-elif st.session_state.page == 'Task 2 Intro': page_task2_intro()  # <--- 新增的过渡页
+elif st.session_state.page == 'Task 2 Intro': page_task2_intro()  
 elif st.session_state.page == 'Task 2': page_task2()
 elif st.session_state.page == 'Task 3': page_task3()
 elif st.session_state.page == 'Task 4': page_task4()
