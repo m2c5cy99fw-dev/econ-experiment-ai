@@ -158,8 +158,8 @@ def page_task2():
             if user_ans.strip() == str(a + b):
                 score += 1
                 
-        # 隐形时间阈值匹配（有AI限时20秒，无AI限时25秒）
-        allowed_time = 20.0 if st.session_state.is_ai == 1 else 25.0
+        # 隐形时间阈值匹配（有AI限时30秒，无AI限时25秒）
+        allowed_time = 30.0 if st.session_state.is_ai == 1 else 25.0
         
         if score == 3 and time_spent <= allowed_time:
             st.session_state.data['task2_tokens'] = score * 4
