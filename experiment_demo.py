@@ -45,12 +45,12 @@ def page_task1():
     st.write("规则：请完成以下加法任务。**每答对一题，您将获得 2 代币**。")
     
     if st.session_state.group == '处理组（有AI）':
-        st.success("🤖 **系统提示：** 您属于处理组。您可以使用屏幕下方的 ChatGPT 辅助工具帮您快速计算！")
-        with st.expander("点击召唤 ChatGPT 辅助计算"):
+        st.success("🤖 **系统提示：** 您可以使用屏幕下方的 AI 辅助工具帮您快速计算！")
+        with st.expander("点击召唤 AI 助手进行辅助计算"):
             st.write("*(模拟AI界面：您可以将题目复制进来获取答案)*")
             st.text_input("向AI提问：")
     else:
-        st.warning("🔒 **系统提示：** 您属于控制组。您必须独立完成计算，禁止使用任何外部工具。")
+        st.warning("🔒 **系统提示：** 您必须独立完成计算，禁止使用任何外部工具哦。")
 
     # 使用表单一次性提交多道题
     with st.form("task1_form"):
@@ -197,7 +197,7 @@ def page_result():
     st.metric(label="兑换为真实人民币 (1代币=0.5元)", value=f"¥ {final_rmb} 元")
 
     st.divider()
-    st.write("📈 **后台收集到的微观截面数据（可直接用于 Stata OLS/Probit 回归分析）：**")
+    st.write("📈 **以下是您的回答结果。请查收！**")
     df = pd.DataFrame([st.session_state.data])
     st.dataframe(df, use_container_width=True)
     
