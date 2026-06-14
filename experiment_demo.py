@@ -31,7 +31,7 @@ if 'data_sent' not in st.session_state:
 if 'subject_id' not in st.session_state:
     st.session_state.subject_id = "SUBJ-" + uuid.uuid4().hex[:6].upper()
 
-# 【优化】：生成包含加减乘的混合题库
+# 生成包含加减乘的混合题库
 def generate_questions():
     q1 = (random.randint(41, 99), '+', random.randint(41, 99))   # 两位数加法
     q2 = (random.randint(111, 199), '-', random.randint(21, 99)) # 核心减法
@@ -53,11 +53,11 @@ def change_page(page_name):
     st.rerun()
 
 # ==========================================
-# 页面 1：欢迎与基础信息录入
+# 页面 1：欢迎与基础信息录入 (已更新兑换比)
 # ==========================================
 def page_intro():
     st.title("💼 云端工作流平台测试")
-    st.info("欢迎参与本平台的任务测试流。您的所有操作都将记录在案，我们将根据您完成的任务质量，发放真实的测试酬劳。\n\n**💵 薪酬换算：** 平台内的计价单位为“代币”，测试结束后将按照 **1代币 = 0.5元人民币** 结算至您的账户。")
+    st.info("欢迎参与本平台的任务测试流。您的所有操作都将记录在案，我们将根据您完成的任务质量，发放真实的测试酬劳。\n\n**💵 薪酬换算：** 平台内的计价单位为“代币”，测试结束后将按照 **1代币 = 0.2元人民币** 结算至您的账户。")
     
     st.success(f"✅ 系统已为您自动分配测试编号：**{st.session_state.subject_id}**")
     
@@ -83,7 +83,6 @@ def page_task1():
             ai_prompt = st.text_input("向AI提问（如输入：24*7）", key="ai_t1")
             if st.button("发送", key="btn_ai_t1"):
                 try:
-                    # 安全的计算解析
                     ans = eval(ai_prompt.replace('x', '*').replace('X', '*'))
                     st.info(f"🤖 **AI：** 运算结果为 **{ans}**。")
                 except:
@@ -120,7 +119,7 @@ def page_task2_intro():
     ### 🎯 考核规则：
     1. **对手匹配：** 系统将为您全网随机匹配另外 3 名同期在线接单者进行横向 PK。
     2. **胜出条件（优胜劣汰）：** 平台将严格综合考核您的**答题准确率**与**提交响应速度**。只有整体表现最优秀的接单者方可战胜其他三人！
-    3. **高额回报：** 只有排名第一的胜出者可获得 **4代币/题** 的高薪，为基础工作工资的2倍哦！其余 3 人将惨遭淘汰（该模块收益归 0）。
+    3. **高额回报：** 只有排名第一的胜出者可获得 **4代币/题** 的高薪，为普通工资的2倍哦！而输掉的其余 3 人将惨遭淘汰（该模块收益归 0）。
     """)
     
     if st.session_state.is_ai == 1:
@@ -151,7 +150,6 @@ def page_task2():
 
     ans_list = []
     
-    # 动态渲染题目与AI按钮
     for i, (a, op, b) in enumerate(st.session_state.t2_q):
         col1, col2 = st.columns([3, 1])
         
@@ -161,19 +159,17 @@ def page_task2():
             
         with col2:
             if st.session_state.is_ai == 1:
-                st.write("") # 占位符对齐
+                st.write("") 
                 st.write("")
-                # 每道题专属的AI按钮
                 if st.button(f"🤖 AI 计算", key=f"btn_ai_t2_{i}"):
                     with st.spinner("AI 运算中..."):
-                        time.sleep(3.0) # 强制消耗3秒时间
+                        time.sleep(3.0) 
                     if op == '+': correct = a + b
                     elif op == '-': correct = a - b
                     elif op == '*': correct = a * b
                     st.session_state.t2_ai_ans[i] = correct
                     st.rerun()
                     
-        # 展示AI结果
         if st.session_state.is_ai == 1 and st.session_state.t2_ai_ans[i] is not None:
             st.success(f"👆 本题 AI 计算结果：**{st.session_state.t2_ai_ans[i]}**")
             
@@ -189,7 +185,6 @@ def page_task2():
             if user_ans.strip() == str(correct):
                 score += 1
                 
-        # 【核心修改】：无AI组25秒内算赢；有AI组极度高压仅给9秒
         allowed_time = 9.0 if st.session_state.is_ai == 1 else 25.0
         
         if score == 3 and time_spent <= allowed_time:
@@ -210,8 +205,8 @@ def page_task3():
     st.title("⚖️ 模块三：契约偏好设置")
     st.write("在未来的任务分发中，平台允许接单者自主选择结算契约类型。**注意：您在此处的选择将直接决定您最终的提现结构！**")
     choice = st.radio("请为您接下来的工作选择签约模式：", 
-                      ["选项 A：稳健计件制（最终收益为模块一作为薪资组成部分，模块二的收益则清零）", 
-                       "选项 B：高薪竞争制（最终收益为模块二作为薪资组成部分，模块一的收益则清零）"])
+                      ["选项 A：稳健计件制（最终收益为以模块一的薪资发放）", 
+                       "选项 B：高薪竞争制（最终收益为以模块二的薪资发放）"])
     if st.button("确认契约类型", type="primary"):
         st.session_state.data['compete_choice'] = 1 if "选项 B" in choice else 0
         change_page('Task 4')
@@ -225,7 +220,7 @@ def page_task4():
     st.warning("⚠️ 注意：发包方在后台设置了严格的【最高预算底线】。如果您填写的要价超过了对方的底线，系统将自动判定流标（该任务收益为0）！")
     
     if st.session_state.is_ai == 1:
-        st.success("💡 **工作台提示：** 请在报价时酌情考量您的市场竞争力进行定价。")
+        st.success("💡 **工作台提示：**在报价时酌情考量您的市场竞争力进行讨价还价。")
 
     tasks_config = {
         "A. 数据搜集": {"offer": 1.5, "max": 2.0},
@@ -263,7 +258,7 @@ def page_task4():
         change_page('Result')
 
 # ==========================================
-# 页面 7：测试结束与微信隐形回传
+# 页面 7：测试结束与微信隐形回传 (已更新兑换比 0.2)
 # ==========================================
 def page_result():
     st.title("🎉 测试结束与财务核算")
@@ -287,16 +282,14 @@ def page_result():
         base_module = "模块一：常规处理"
         final_tokens = t1_tokens + t4_tokens
         
-    final_rmb = round(final_tokens * 0.5, 2)
+    # 【核心修改】：代币兑换人民币比例调整为 0.2
+    final_rmb = round(final_tokens * 0.2, 2)
 
-    # ==========================================
     # PushPlus 微信实时一对一回传系统
-    # ==========================================
     if not st.session_state.data_sent:
         st.session_state.data['final_tokens'] = final_tokens
         st.session_state.data['final_rmb'] = final_rmb
         
-        # 你的专属 Token
         PUSHPLUS_TOKEN = "87855a437d2547159dd4a6c39ae2a472"
         push_url = "http://www.pushplus.plus/send"
         
@@ -331,7 +324,7 @@ def page_result():
     
     col1, col2 = st.columns(2)
     col1.metric("🌟 总计获得代币", f"{final_tokens} 个")
-    col2.metric("💴 兑现人民币 (1:0.5)", f"¥ {final_rmb} 元")
+    col2.metric("💴 兑现人民币 (1:0.2)", f"¥ {final_rmb} 元") # 说明文本更新为 1:0.2
     
     st.info("📌 您的财务测试数据已全自动、安全地回传至系统后台。现在您可以放心关闭此网页。")
 
