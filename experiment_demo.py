@@ -5,12 +5,12 @@ import time
 import re
 
 # ==========================================
-# 页面全局配置 (去实验化包装)
+# 页面全局配置
 # ==========================================
 st.set_page_config(page_title="云端在线工作台 - 收益测试", layout="centered")
 
 # ==========================================
-# 核心状态初始化 (数据静默运转)
+# 核心状态初始化 
 # ==========================================
 if 'page' not in st.session_state:
     st.session_state.page = 'Intro'
@@ -48,7 +48,7 @@ def page_intro():
         change_page('Task 1')
 
 # ==========================================
-# 页面 2：Task 1 计件模式 (常规数据处理)
+# 页面 2：Task 1 计件模式 
 # ==========================================
 def page_task1():
     st.title("📝 模块一：常规数据处理")
@@ -81,26 +81,49 @@ def page_task1():
                 score += 1
         st.session_state.data['task1_score'] = score
         st.session_state.data['task1_tokens'] = score * 2 
+        # 【修改点】：完成后先跳转到 Task 2 的说明页，而不是直接开考
+        change_page('Task 2 Intro')
+
+# ==========================================
+# 页面 3：Task 2 说明准备页 (新增过渡页)
+# ==========================================
+def page_task2_intro():
+    st.title("⚠️ 模块二考核说明：高薪竞争模式")
+    st.warning("您即将进入压力测试环节，请仔细阅读以下规则。点击下方按钮后，将立即开始匹配对手并启动倒计时！")
+    
+    st.markdown("""
+    ### 🎯 考核规则：
+    1. **对手匹配：** 系统将为您全网随机匹配另外 3 名同期在线接单者进行横向 PK。
+    2. **胜出条件（优胜劣汰）：** 您必须在接下来的测试中保证 **100% 的准确率（3题全对）**，且总耗时必须控制在 **15 秒以内**，方可战胜其他三人！
+    3. **高额回报：** 只有排名第一的胜出者可获得 **8代币/题** 的高薪，其余 3 人将惨遭淘汰（收益归 0）。
+    """)
+    
+    if st.session_state.is_ai == 1:
+        st.info("💡 **致胜秘籍：** 作为拥有 AI 辅助特权的测试员，请提前准备好您的复制粘贴手速，让 AI 帮您秒杀对手！")
+
+    st.write("请深呼吸，准备好后点击下方按钮。")
+    
+    # 按钮点击后才真正进入带倒计时的 Task 2
+    if st.button("我已完全了解规则，开始匹配并挑战！", type="primary"):
         change_page('Task 2')
 
 # ==========================================
-# 页面 3：Task 2 锦标赛模式 (高压时间限制: 4秒)
+# 页面 4：Task 2 锦标赛模式 (正式考核与计时)
 # ==========================================
 def page_task2():
-    st.title("🏆 模块二：竞标直通车")
-    st.write("规则：本模块为**极速竞标模式**。您提交的成绩将与平台上随机匹配的**另外 3 名真实接单者**进行比对。**不仅看准确率，也看提交速度！只有第一名可获得 8代币/题**，其余人流标（收益为 0）。")
+    st.title("🏆 模块二：高薪竞争模式 (进行中)")
     
     if not st.session_state.matched:
-        with st.spinner('正在全网匹配同期在线被试者，请稍候...'):
+        with st.spinner('正在全网匹配同期在线接单者，请稍候...'):
             time.sleep(2.5) 
         st.session_state.matched = True
+        # 匹配成功的那一刻，才是真正开始计时的时间点
         st.session_state.t2_start_time = time.time() 
         st.rerun()
 
-    st.success("✅ 匹配成功！您已被分配至 4人竞争小组，计时已开始！")
+    st.success("✅ 匹配成功！您已被分配至 4人竞争小组，考核计时已开始！请火速作答！")
     
     if st.session_state.is_ai == 1:
-        st.success("💡 **工作台提示：** AI 助手已激活，合理利用可大幅缩短您的作答时间！")
         with st.expander("👉 展开 AI 助手"):
             ai_prompt = st.text_input("向AI提问", key="ai_t2")
             if st.button("发送", key="btn_ai_t2"):
@@ -109,21 +132,21 @@ def page_task2():
                     ans = int(numbers[0]) + int(numbers[1])
                     st.info(f"🤖 **AI：** 运算结果为 **{ans}**。")
 
-    st.subheader("请快速作答：")
     ans_list = []
     for i, (a, b) in enumerate(st.session_state.t2_q):
         user_ans = st.text_input(f"数据条目 {i+1}： {a} + {b} = ?", key=f"t2_q{i}")
         ans_list.append((a, b, user_ans))
         
-    if st.button("提交成绩入库", type="primary"):
+    if st.button("提交成绩入库 (注意耗时！)", type="primary"):
+        # 计算被试者作答耗时
         time_spent = time.time() - st.session_state.t2_start_time
         score = 0
         for a, b, user_ans in ans_list:
             if user_ans.strip() == str(a + b):
                 score += 1
                 
-        # 【修改点 1】：判定时间缩短为 4.0 秒
-        if score > 0 and time_spent <= 4.0:
+        # 隐形判定规则：全对(3分) 且 用时 <= 15.0秒
+        if score == 3 and time_spent <= 15.0:
             st.session_state.data['task2_tokens'] = score * 8
             st.session_state.data['task2_win'] = 1
         else:
@@ -135,20 +158,20 @@ def page_task2():
         change_page('Task 3')
 
 # ==========================================
-# 页面 4：Task 3 契约偏好
+# 页面 5：Task 3 契约偏好 
 # ==========================================
 def page_task3():
     st.title("⚖️ 模块三：契约偏好设置")
     st.write("在未来的任务分发中，平台允许接单者自主选择结算契约类型。**注意：您在此处的选择将直接决定您最终的提现结构！**")
     choice = st.radio("请为您接下来的工作选择签约模式：", 
                       ["选项 A：稳健计件制（最终收益 = 模块一常规处理 + 模块四协商）", 
-                       "选项 B：高额竞标制（最终收益 = 模块二极速竞标 + 模块四协商）"])
+                       "选项 B：高薪竞争制（最终收益 = 模块二竞争模式 + 模块四协商）"])
     if st.button("确认契约类型", type="primary"):
         st.session_state.data['compete_choice'] = 1 if "选项 B" in choice else 0
         change_page('Task 4')
 
 # ==========================================
-# 页面 5：Task 4 薪酬谈判博弈 
+# 页面 6：Task 4 薪酬谈判博弈 
 # ==========================================
 def page_task4():
     st.title("💼 模块四：项目报价与协商")
@@ -194,7 +217,7 @@ def page_task4():
         change_page('Result')
 
 # ==========================================
-# 页面 6：实验结束与财务核算 (契约选择绑定版)
+# 页面 7：实验结束与财务核算 
 # ==========================================
 def page_result():
     st.title("🎉 测试结束与财务核算")
@@ -205,19 +228,17 @@ def page_result():
     t2_tokens = st.session_state.data.get('task2_tokens', 0)
     t4_tokens = st.session_state.data.get('task4_tokens', 0)
     
-    # 提取被试在 Task 3 中的选择 (1为竞标，0为计件)
     compete_choice = st.session_state.data.get('compete_choice', 0)
     
-    # 【修改点 2】：根据选择动态展示不同的组合收益
     if compete_choice == 1:
         contract_name = "高额竞标制 (选项 B)"
         base_tokens = t2_tokens
-        base_module = "模块二：极速竞标"
+        base_module = "模块二：高薪竞争"
         final_tokens = t2_tokens + t4_tokens
     else:
         contract_name = "稳健计件制 (选项 A)"
         base_tokens = t1_tokens
-        base_module = "模块一：常规数据处理"
+        base_module = "模块一：常规处理"
         final_tokens = t1_tokens + t4_tokens
         
     final_rmb = round(final_tokens * 0.5, 2)
@@ -230,9 +251,8 @@ def page_result():
     col_b.metric("模块四：项目协商", f"{t4_tokens} 代币")
     col_c.metric("未选用模块", "0 代币", delta="-已弃用-", delta_color="off")
 
-    # 失败提醒逻辑更新
     if compete_choice == 1 and t2_tokens == 0:
-        st.warning("⚠️ 模块二注：您在竞标中未能战胜对手（可能是准确率未全对，或总耗时超过了 4 秒），导致该部分收益流标为0。")
+        st.warning("⚠️ 模块二注：您在竞争中未能战胜对手（可能准确率未达到100%，或总耗时超过了15秒），导致该部分收益流标为0。")
     if 'task4_tokens' in st.session_state.data and t4_tokens < 6.0: 
         st.info("💡 模块四注：项目协商中，若您的个别报价超过了发包方底线，该单笔项目收益将归零。")
 
@@ -253,9 +273,12 @@ def page_result():
             del st.session_state[key]
         st.rerun()
 
-# 路由挂载
+# ==========================================
+# 路由挂载 (增加新增的 Intro 页面)
+# ==========================================
 if st.session_state.page == 'Intro': page_intro()
 elif st.session_state.page == 'Task 1': page_task1()
+elif st.session_state.page == 'Task 2 Intro': page_task2_intro()  # <--- 新增的过渡页
 elif st.session_state.page == 'Task 2': page_task2()
 elif st.session_state.page == 'Task 3': page_task3()
 elif st.session_state.page == 'Task 4': page_task4()
