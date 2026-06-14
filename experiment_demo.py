@@ -27,15 +27,25 @@ if 'matched' not in st.session_state:
 if 'data_sent' not in st.session_state:
     st.session_state.data_sent = False 
 
-# 系统全自动生成唯一编码，免去手动输入的干扰
+# 系统全自动生成唯一编码
 if 'subject_id' not in st.session_state:
     st.session_state.subject_id = "SUBJ-" + uuid.uuid4().hex[:6].upper()
 
-# 动态题库生成 (确保每位被试独立作答)
+# 【优化】：生成包含加减乘的混合题库
+def generate_questions():
+    q1 = (random.randint(41, 99), '+', random.randint(41, 99))   # 两位数加法
+    q2 = (random.randint(111, 199), '-', random.randint(21, 99)) # 核心减法
+    q3 = (random.randint(12, 25), '*', random.randint(4, 9))     # 两位数乘一位数
+    return [q1, q2, q3]
+
 if 't1_q' not in st.session_state:
-    st.session_state.t1_q = [(random.randint(11, 99), random.randint(11, 99)) for _ in range(3)]
+    st.session_state.t1_q = generate_questions()
 if 't2_q' not in st.session_state:
-    st.session_state.t2_q = [(random.randint(11, 99), random.randint(11, 99)) for _ in range(3)]
+    st.session_state.t2_q = generate_questions()
+
+# Task 2 AI 独立答案存储状态
+if 't2_ai_ans' not in st.session_state:
+    st.session_state.t2_ai_ans = [None, None, None]
 
 # 页面跳转路由函数
 def change_page(page_name):
@@ -51,9 +61,7 @@ def page_intro():
     
     st.success(f"✅ 系统已为您自动分配测试编号：**{st.session_state.subject_id}**")
     
-    # 【新增】：收集年龄作为异质性分析变量（默认值设为22，范围16-80，直接存为整数）
     st.session_state.data['age'] = st.number_input("您的年龄：", min_value=16, max_value=80, value=22, step=1)
-    
     st.session_state.data['gender'] = st.radio("您的性别：", ["男性", "女性"], horizontal=True)
     st.session_state.data['confidence'] = st.slider("请评估您对数据处理和基础算术的自信程度（1-10分）：", 1, 10, 5)
     
@@ -67,39 +75,42 @@ def page_intro():
 # ==========================================
 def page_task1():
     st.title("📝 模块一：常规数据处理")
-    st.write("请完成以下加法核对任务。**每正确处理一条，您将获得 2 代币的基础薪酬**。")
+    st.write("请完成以下运算核对任务。**每正确处理一条，您将获得 2 代币的基础薪酬**。")
     
     if st.session_state.is_ai == 1:
         st.success("💡 **工作台提示：** 本平台已接入最新的 AI 辅助模型。您可以随时调用下方工具提高处理效率。")
-        with st.expander("👉 展开 AI 助手"):
-            ai_prompt = st.text_input("向AI提问（如输入：24+19）", key="ai_t1")
+        with st.expander("👉 展开全局 AI 助手"):
+            ai_prompt = st.text_input("向AI提问（如输入：24*7）", key="ai_t1")
             if st.button("发送", key="btn_ai_t1"):
-                numbers = re.findall(r'\d+', ai_prompt)
-                if len(numbers) >= 2:
-                    ans = int(numbers[0]) + int(numbers[1])
+                try:
+                    # 安全的计算解析
+                    ans = eval(ai_prompt.replace('x', '*').replace('X', '*'))
                     st.info(f"🤖 **AI：** 运算结果为 **{ans}**。")
-                else:
-                    st.warning("🤖 **AI：** 请输入需要计算的数字。")
+                except:
+                    st.warning("🤖 **AI：** 请输入标准的数学算式。")
     else:
         st.info("💻 **工作台提示：** 请在规定时间内，确保数据处理的准确率。")
 
     st.subheader("请作答：")
     ans_list = []
-    for i, (a, b) in enumerate(st.session_state.t1_q):
-        user_ans = st.text_input(f"数据条目 {i+1}： {a} + {b} = ?", key=f"t1_q{i}")
-        ans_list.append((a, b, user_ans))
+    for i, (a, op, b) in enumerate(st.session_state.t1_q):
+        user_ans = st.text_input(f"数据条目 {i+1}： {a} {op} {b} = ?", key=f"t1_q{i}")
+        ans_list.append((a, op, b, user_ans))
         
     if st.button("提交数据并进入下一模块", type="primary"):
         score = 0
-        for a, b, user_ans in ans_list:
-            if user_ans.strip() == str(a + b):
+        for a, op, b, user_ans in ans_list:
+            if op == '+': correct = a + b
+            elif op == '-': correct = a - b
+            elif op == '*': correct = a * b
+            if user_ans.strip() == str(correct):
                 score += 1
         st.session_state.data['task1_score'] = score
         st.session_state.data['task1_tokens'] = score * 2 
         change_page('Task 2 Intro')
 
 # ==========================================
-# 页面 3：Task 2 说明准备页 (严格隐藏具体秒数)
+# 页面 3：Task 2 说明准备页
 # ==========================================
 def page_task2_intro():
     st.title("⚠️ 模块二考核说明：高薪竞争模式")
@@ -109,11 +120,11 @@ def page_task2_intro():
     ### 🎯 考核规则：
     1. **对手匹配：** 系统将为您全网随机匹配另外 3 名同期在线接单者进行横向 PK。
     2. **胜出条件（优胜劣汰）：** 平台将严格综合考核您的**答题准确率**与**提交响应速度**。只有整体表现最优秀的接单者方可战胜其他三人！
-    3. **高额回报：** 只有排名第一的胜出者可获得 **4代币/题** 的高薪，是普通计价方式的2倍哦！而失败的其余 3 人将惨遭淘汰（该模块收益归 0）。
+    3. **高额回报：** 只有排名第一的胜出者可获得 **4代币/题** 的高薪，为基础工作工资的2倍哦！其余 3 人将惨遭淘汰（该模块收益归 0）。
     """)
     
     if st.session_state.is_ai == 1:
-        st.info("💡 **致胜秘籍：** 作为拥有 AI 辅助特权的测试员，请熟练采用复制粘贴等形式配合 AI 助手，以最快的速度秒杀对手！")
+        st.info("💡 **致胜秘籍：** 竞争模式中，您将可以使用各题目专属的【极速 AI 接口】，但请求 AI 会产生时间消耗，请合理规划策略！")
 
     st.write("请深呼吸，准备好后点击下方按钮。")
     
@@ -121,7 +132,7 @@ def page_task2_intro():
         change_page('Task 2')
 
 # ==========================================
-# 页面 4：Task 2 锦标赛模式 (精准隐形时间拦截)
+# 页面 4：Task 2 锦标赛模式 (专属AI按钮 + 苛刻限时)
 # ==========================================
 def page_task2():
     st.title("🏆 模块二：高薪竞争模式 (进行中)")
@@ -130,36 +141,56 @@ def page_task2():
         with st.spinner('正在全网匹配同期在线接单者，请稍候...'):
             time.sleep(2.5) 
         st.session_state.matched = True
-        # 匹配成功，静默启动高精计时器
         st.session_state.t2_start_time = time.time() 
         st.rerun()
 
-    st.success("✅ 匹配成功！您已被分配至 4人竞争小组，考核已开始！请火速作答并点击下方提交！")
+    st.success("✅ 匹配成功！您已被分配至 4人竞争小组，考核已开始！请火速作答并点击最下方提交！")
     
     if st.session_state.is_ai == 1:
-        with st.expander("👉 展开 AI 助手"):
-            ai_prompt = st.text_input("向AI提问", key="ai_t2")
-            if st.button("发送", key="btn_ai_t2"):
-                numbers = re.findall(r'\d+', ai_prompt)
-                if len(numbers) >= 2:
-                    ans = int(numbers[0]) + int(numbers[1])
-                    st.info(f"🤖 **AI：** 运算结果为 **{ans}**。")
+        st.info("💡 提示：点击题目右侧的 AI 按钮可自动计算结果（云端运算需要一定时间）。")
 
     ans_list = []
-    for i, (a, b) in enumerate(st.session_state.t2_q):
-        user_ans = st.text_input(f"数据条目 {i+1}： {a} + {b} = ?", key=f"t2_q{i}")
-        ans_list.append((a, b, user_ans))
+    
+    # 动态渲染题目与AI按钮
+    for i, (a, op, b) in enumerate(st.session_state.t2_q):
+        col1, col2 = st.columns([3, 1])
         
-    if st.button("提交成绩入库", type="primary"):
-        # 计算被试实际总耗时
+        with col1:
+            user_ans = st.text_input(f"数据条目 {i+1}： {a} {op} {b} = ?", key=f"t2_q{i}")
+            ans_list.append((a, op, b, user_ans))
+            
+        with col2:
+            if st.session_state.is_ai == 1:
+                st.write("") # 占位符对齐
+                st.write("")
+                # 每道题专属的AI按钮
+                if st.button(f"🤖 AI 计算", key=f"btn_ai_t2_{i}"):
+                    with st.spinner("AI 运算中..."):
+                        time.sleep(3.0) # 强制消耗3秒时间
+                    if op == '+': correct = a + b
+                    elif op == '-': correct = a - b
+                    elif op == '*': correct = a * b
+                    st.session_state.t2_ai_ans[i] = correct
+                    st.rerun()
+                    
+        # 展示AI结果
+        if st.session_state.is_ai == 1 and st.session_state.t2_ai_ans[i] is not None:
+            st.success(f"👆 本题 AI 计算结果：**{st.session_state.t2_ai_ans[i]}**")
+            
+    st.divider()
+    
+    if st.button("🚀 提交全部成绩入库", type="primary"):
         time_spent = time.time() - st.session_state.t2_start_time
         score = 0
-        for a, b, user_ans in ans_list:
-            if user_ans.strip() == str(a + b):
+        for a, op, b, user_ans in ans_list:
+            if op == '+': correct = a + b
+            elif op == '-': correct = a - b
+            elif op == '*': correct = a * b
+            if user_ans.strip() == str(correct):
                 score += 1
                 
-        # 隐形时间阈值匹配（有AI限时30秒，无AI限时25秒）
-        allowed_time = 30.0 if st.session_state.is_ai == 1 else 25.0
+        # 【核心修改】：无AI组25秒内算赢；有AI组极度高压仅给9秒
+        allowed_time = 9.0 if st.session_state.is_ai == 1 else 25.0
         
         if score == 3 and time_spent <= allowed_time:
             st.session_state.data['task2_tokens'] = score * 4
@@ -177,16 +208,16 @@ def page_task2():
 # ==========================================
 def page_task3():
     st.title("⚖️ 模块三：契约偏好设置")
-    st.write("该平台允许接单者自主选择结算契约类型。**注意：您在此处的选择将直接决定您最终的提现结构！**")
+    st.write("在未来的任务分发中，平台允许接单者自主选择结算契约类型。**注意：您在此处的选择将直接决定您最终的提现结构！**")
     choice = st.radio("请为您接下来的工作选择签约模式：", 
-                      ["选项 A：稳健计件制（最终收益以模块一作为底薪）", 
-                       "选项 B：高薪竞争制（最终收益以模块二作为底薪）"])
+                      ["选项 A：稳健计件制（最终收益为模块一作为薪资组成部分，模块二的收益则清零）", 
+                       "选项 B：高薪竞争制（最终收益为模块二作为薪资组成部分，模块一的收益则清零）"])
     if st.button("确认契约类型", type="primary"):
         st.session_state.data['compete_choice'] = 1 if "选项 B" in choice else 0
         change_page('Task 4')
 
 # ==========================================
-# 页面 6：Task 4 薪酬谈判博弈 (动态输入框联动)
+# 页面 6：Task 4 薪酬谈判博弈
 # ==========================================
 def page_task4():
     st.title("💼 模块四：项目报价与协商")
@@ -194,9 +225,8 @@ def page_task4():
     st.warning("⚠️ 注意：发包方在后台设置了严格的【最高预算底线】。如果您填写的要价超过了对方的底线，系统将自动判定流标（该任务收益为0）！")
     
     if st.session_state.is_ai == 1:
-        st.success("💡 **工作台提示：** AI 赋能让您具备更高的产出价值，请在报价时酌情考量您的市场竞争力。")
+        st.success("💡 **工作台提示：** 请在报价时酌情考量您的市场竞争力进行定价。")
 
-    # 精准设定的谈判底线字典
     tasks_config = {
         "A. 数据搜集": {"offer": 1.5, "max": 2.0},
         "B. 文案撰写": {"offer": 2.0, "max": 3.0},
@@ -260,12 +290,13 @@ def page_result():
     final_rmb = round(final_tokens * 0.5, 2)
 
     # ==========================================
-    # PushPlus 微信实时回传系统
+    # PushPlus 微信实时一对一回传系统
     # ==========================================
     if not st.session_state.data_sent:
         st.session_state.data['final_tokens'] = final_tokens
         st.session_state.data['final_rmb'] = final_rmb
         
+        # 你的专属 Token
         PUSHPLUS_TOKEN = "87855a437d2547159dd4a6c39ae2a472"
         push_url = "http://www.pushplus.plus/send"
         
